@@ -8,11 +8,11 @@ architecture: 'vit_base_patch16_224'
 
 # training
 train:
-loss: 'CrossEntropyLoss'
-optimizer: 'SGD'
+loss: 'SeeSawLoss'
+optimizer: 'AdamW'
 scheduler: 'plateau'
-epochs: 100
-learning_rate: 0.01
+epochs: 30
+learning_rate: 0.0001
 batch_size: 64
 accumulation_steps: 1
 
