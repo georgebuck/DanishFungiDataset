@@ -38,7 +38,16 @@ def load_safety_data(safety_json_path):
             return json.load(f)
     except:
         return {}
-
+def build_safety_from_csv(train_csv_path):
+    df = pd.read_csv(train_csv_path)
+    safety = {}
+    for _, row in df[['species', 'poisonous']].drop_duplicates().iterrows():
+        if pd.isna(row['species']):
+            continue
+        safety[row['species']] = {
+            "safety": "toxic" if row['poisonous'] == 1 else "edible"
+        }
+    return safety
 def get_safety_tier(species_name, safety_data):
     return safety_data.get(species_name, {}).get("safety", "unknown")
 
@@ -53,6 +62,12 @@ def classify_frame(model, frame, transform, id2species, safety_data, device, top
     probs = softmax(logits.cpu().numpy(), axis=1)[0]
     top_indices = np.argsort(-probs)[:top_k]
 
+    # Calculate entropy-based OOD confidence
+    num_classes = len(probs)
+    max_entropy = np.log(num_classes)
+    entropy = -np.sum(probs * np.log(probs + 1e-10))
+    dataset_confidence = float(1 - (entropy / max_entropy))
+
     results = []
     for idx in top_indices:
         species = id2species.get(idx, "Unknown")
@@ -61,8 +76,8 @@ def classify_frame(model, frame, transform, id2species, safety_data, device, top
             "probability": float(probs[idx]),
             "safety": get_safety_tier(species, safety_data)
         })
-    return results
 
+    return results, dataset_confidence
 def run_live(checkpoint_path=HF_MODEL, config_path=HF_CONFIG,
              train_csv=TRAIN_CSV, safety_json=SAFETY_JSON):
 
